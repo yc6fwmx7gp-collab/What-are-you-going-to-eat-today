@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, Settings, ChefHat, Utensils, RefreshCw, AlertCircle, CheckCircle2, Heart, Clock, Globe, X } from 'lucide-react';
+import { Upload, Settings, ChefHat, Utensils, RefreshCw, AlertCircle, CheckCircle2, Heart, Clock, Globe, X, Trash2, Shuffle, Star } from 'lucide-react';
 
 type Category = 'Home-style' | 'Luxury' | 'Creative/Innovative';
 
@@ -26,6 +26,11 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
   const [showProfile, setShowProfile] = useState(false);
+  const [favoriteRatings, setFavoriteRatings] = useState<Record<number, number>>(() => {
+    const saved = localStorage.getItem('favorite_ratings');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [favoritesSort, setFavoritesSort] = useState<'name' | 'category' | 'rating' | 'none'>('none');
 
   const toggleFavorite = (id: number) => {
     setFavorites(prev => {
@@ -34,6 +39,49 @@ export default function App() {
       return next;
     });
   };
+
+  const updateRating = (id: number, rating: number) => {
+    setFavoriteRatings(prev => {
+      const next = { ...prev, [id]: rating };
+      localStorage.setItem('favorite_ratings', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const clearFavorites = () => {
+    if (window.confirm('Are you sure you want to clear all your favorite dishes?')) {
+      setFavorites([]);
+      localStorage.removeItem('favorite_dishes');
+      setFavoriteRatings({});
+      localStorage.removeItem('favorite_ratings');
+    }
+  };
+
+  const randomizeFavorites = () => {
+    setFavoritesSort('none');
+    setFavorites(prev => {
+      const shuffled = [...prev].sort(() => 0.5 - Math.random());
+      localStorage.setItem('favorite_dishes', JSON.stringify(shuffled));
+      return shuffled;
+    });
+  };
+
+  const getSortedFavorites = () => {
+    const favDishes = favorites.map(id => dishes.find(d => d.id === id)).filter((d): d is Dish => !!d);
+    
+    if (favoritesSort === 'name') {
+      return favDishes.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (favoritesSort === 'category') {
+      return favDishes.sort((a, b) => a.category.localeCompare(b.category));
+    }
+    if (favoritesSort === 'rating') {
+      return favDishes.sort((a, b) => (favoriteRatings[b.id] || 0) - (favoriteRatings[a.id] || 0));
+    }
+    
+    return favDishes;
+  };
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -248,7 +296,7 @@ export default function App() {
               <input
                 type="number"
                 min="1"
-                max="10"
+                max="15"
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                 className="w-full text-sm border border-stone-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
@@ -467,27 +515,69 @@ export default function App() {
                     <p className="text-stone-400 text-sm mt-1">Draw some dishes and click the heart icon to save them here!</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {dishes.filter(d => favorites.includes(d.id)).map(dish => (
-                      <div key={dish.id} className="flex items-center justify-between bg-stone-50 p-4 rounded-xl border border-stone-200 hover:border-emerald-200 transition-colors group">
-                        <div>
-                          <h4 className="font-bold text-stone-900 text-lg">{dish.name}</h4>
-                          <div className="text-xs text-stone-500 mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-                            <span className="font-medium text-stone-600">{dish.category}</span>
-                            {dish.cuisine_type && <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {dish.cuisine_type}</span>}
-                            {dish.estimated_cooking_time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {dish.estimated_cooking_time}</span>}
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => toggleFavorite(dish.id)} 
-                          className="p-2 text-red-500 hover:bg-red-100 rounded-full transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                          title="Remove from favorites"
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-stone-600">Sort by:</span>
+                        <select 
+                          value={favoritesSort} 
+                          onChange={(e) => setFavoritesSort(e.target.value as any)}
+                          className="text-sm border border-stone-300 rounded-lg px-2 py-1 bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
                         >
-                          <Heart className="w-5 h-5 fill-red-500" />
+                          <option value="none">Default</option>
+                          <option value="name">Name</option>
+                          <option value="category">Category</option>
+                          <option value="rating">Rating</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={randomizeFavorites}
+                          className="flex items-center gap-1 text-sm bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          <Shuffle className="w-4 h-4" /> Randomize
+                        </button>
+                        <button 
+                          onClick={clearFavorites}
+                          className="flex items-center gap-1 text-sm bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" /> Clear All
                         </button>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                    <div className="space-y-3">
+                      {getSortedFavorites().map(dish => (
+                        <div key={dish.id} className="flex items-start justify-between bg-stone-50 p-4 rounded-xl border border-stone-200 hover:border-emerald-200 transition-colors group">
+                          <div className="flex-1">
+                            <h4 className="font-bold text-stone-900 text-lg">{dish.name}</h4>
+                            <div className="text-xs text-stone-500 mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                              <span className="font-medium text-stone-600">{dish.category}</span>
+                              {dish.cuisine_type && <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {dish.cuisine_type}</span>}
+                              {dish.estimated_cooking_time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {dish.estimated_cooking_time}</span>}
+                            </div>
+                            <div className="flex items-center gap-1 mt-3">
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <button
+                                  key={star}
+                                  onClick={() => updateRating(dish.id, star)}
+                                  className="focus:outline-none"
+                                >
+                                  <Star className={`w-4 h-4 ${(favoriteRatings[dish.id] || 0) >= star ? 'fill-amber-400 text-amber-400' : 'text-stone-300 hover:text-amber-200'}`} />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => toggleFavorite(dish.id)} 
+                            className="p-2 text-red-500 hover:bg-red-100 rounded-full transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ml-4"
+                            title="Remove from favorites"
+                          >
+                            <Heart className="w-5 h-5 fill-red-500" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </motion.div>
