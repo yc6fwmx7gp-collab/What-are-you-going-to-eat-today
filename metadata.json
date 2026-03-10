@@ -1,0 +1,5 @@
+{
+  "name": "What Are You Going to Eat Today?",
+  "description": "A secure, privacy-focused app to randomly choose what to eat from a local dish pool.",
+  "requestFramePermissions": []
+}
